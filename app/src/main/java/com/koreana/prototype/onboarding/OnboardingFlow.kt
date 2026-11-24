@@ -1,6 +1,5 @@
 package com.koreana.prototype.onboarding
 
-import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -31,7 +30,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,10 +59,24 @@ import com.koreana.prototype.Scripts
 import com.koreana.prototype.Speaker
 import com.koreana.prototype.TalkConfig
 import com.koreana.prototype.TalkMode
-import com.koreana.prototype.talk.JiwooCard
-import com.koreana.prototype.talk.MicButton
-import com.koreana.prototype.talk.SayCard
+import com.koreana.prototype.Spoken
+import com.koreana.prototype.talk.CaptionText
+import com.koreana.prototype.talk.DarkPill
+import com.koreana.prototype.talk.DisplaySheet
+import com.koreana.prototype.talk.HistorySheet
+import com.koreana.prototype.talk.ListenPill
+import com.koreana.prototype.talk.PlainCaption
+import com.koreana.prototype.talk.SceneShades
 import com.koreana.prototype.talk.TalkScreen
+import com.koreana.prototype.talk.VoiceCard
+import com.koreana.prototype.talk.WordSheet
+import com.koreana.prototype.ui.TK
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
+import kotlinx.coroutines.Job
 import com.koreana.prototype.ui.GlassChip
 import com.koreana.prototype.ui.GlassIconButton
 import com.koreana.prototype.ui.Ic
@@ -99,12 +111,14 @@ private val interests = listOf(
 fun OnboardingFlow(model: AppModel, onOpenDebug: () -> Unit) {
     var step by remember { mutableStateOf(Step.Welcome) }
     var talkNonce by remember { mutableIntStateOf(0) }
+    var interest by remember { mutableIntStateOf(0) }
+    var transcript by remember { mutableStateOf(emptyList<Spoken>()) }
 
     BackHandler(enabled = step != Step.Welcome && step != Step.FirstTalk) {
         step = when (step) {
             Step.Interest -> Step.Welcome
             Step.ToneIntro -> Step.Interest
-            Step.ToneRepeat, Step.ToneDone -> Step.ToneIntro
+            Step.Done -> { talkNonce++; Step.FirstTalk }
             else -> Step.ToneIntro
         }
     }
@@ -120,30 +134,25 @@ fun OnboardingFlow(model: AppModel, onOpenDebug: () -> Unit) {
                 },
                 onOpenDebug = onOpenDebug,
             )
-            Step.Interest -> InterestSelect(onBack = { step = Step.Welcome }, onPick = { step = Step.ToneIntro })
+            Step.Interest -> InterestSelect(onBack = { step = Step.Welcome }, onPick = { interest = it; step = Step.ToneIntro })
             Step.ToneIntro -> ToneIntro(
                 onBack = { step = Step.Interest },
-                onOk = {
-                    // 버튼을 누르면 마이크 권한 요청. 거절해도 실패 없이 보기 전용으로 이어간다.
-                    model.requestMic { granted ->
-                        if (granted) step = Step.ToneRepeat else { talkNonce++; step = Step.FirstTalk }
-                    }
-                },
+                // 버튼을 누르면 마이크 권한 요청. 거절해도 톤 맞추기 화면에서 건너뛸 수 있다.
+                onOk = { model.requestMic { step = Step.ToneRepeat } },
             )
             Step.ToneRepeat -> ToneRepeat(
                 model = model,
-                onBack = { step = Step.ToneIntro },
                 onSkip = { talkNonce++; step = Step.FirstTalk },
                 onDone = { step = Step.ToneDone },
             )
             Step.ToneDone -> ToneDone(onBack = { step = Step.ToneIntro }, onNext = { talkNonce++; step = Step.FirstTalk })
             Step.FirstTalk -> TalkScreen(
                 model = model,
-                config = remember(talkNonce) { TalkConfig(Scripts.firstTalk, TalkMode.Onboarding, nonce = talkNonce) },
+                config = remember(talkNonce) { TalkConfig(Scripts.firstTalk(interest), TalkMode.Onboarding, nonce = talkNonce) },
                 onClose = { step = Step.ToneIntro },
-                onFinished = { step = Step.Done },
+                onFinished = { transcript = it; step = Step.Done },
             )
-            Step.Done -> FirstTalkDone(onBack = { talkNonce++; step = Step.FirstTalk }, onGo = { model.finishOnboarding() })
+            Step.Done -> FirstTalkDone(transcript, onBack = { talkNonce++; step = Step.FirstTalk }, onGo = { model.finishOnboarding() })
         }
     }
 }
@@ -289,116 +298,125 @@ private fun ToneIntro(onBack: () -> Unit, onOk: () -> Unit) {
     }
 }
 
-/** A-3.2 / A-3.2b · 따라 말하기. 소리가 작으면 한 번 더 청하고, 두 번 시도하면 그냥 진행한다. */
+/** A-3.2 / A-3.2b · 지우를 따라 인사한다. 목소리가 작으면 한 번 더 청하고, 두 번 말하면 그냥 넘어간다. */
 @Composable
-private fun ToneRepeat(model: AppModel, onBack: () -> Unit, onSkip: () -> Unit, onDone: () -> Unit) {
+private fun ToneRepeat(model: AppModel, onSkip: () -> Unit, onDone: () -> Unit) {
     val extra = LocalBottomExtra.current
     val voice = LocalVoice.current
     val scope = rememberCoroutineScope()
     val toast = rememberToast()
-    val line = remember { Line("안녕하세요!", "Hello!", "annyeonghaseyo!") }
     var recording by remember { mutableStateOf(false) }
-    var recStart by remember { mutableLongStateOf(0L) }
     var tries by remember { mutableIntStateOf(0) }
     var askLouder by remember { mutableStateOf(false) }
-    var hideText by remember { mutableStateOf(false) }
-    var showTranslation by remember { mutableStateOf(true) }
-    var showRoman by remember { mutableStateOf(false) }
-    var saved by remember { mutableStateOf(false) }
+    var listening by remember { mutableStateOf(false) }
+    var speakJob by remember { mutableStateOf<Job?>(null) }
+    val prompt = if (askLouder) "조금만 더 크게 “안녕하세요”라고 말해 주세요." else "“안녕하세요”라고 말해 볼까요?"
 
-    fun finish(byTimer: Boolean) {
-        if (!recording) return
-        recording = false
-        val quiet = model.nextQuiet || (!byTimer && SystemClock.uptimeMillis() - recStart < 700)
-        model.nextQuiet = false
-        tries += 1
-        if (quiet && tries < 2) askLouder = true else onDone()
+    fun listen() {
+        val wasListening = listening
+        speakJob?.cancel()
+        voice.stop()
+        if (wasListening) return
+        speakJob = scope.launch {
+            listening = true
+            try { voice.speak(prompt, Speaker.Jiwoo) } finally { listening = false }
+        }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(askLouder) {
         delay(400)
-        voice.speak(line.ko, Speaker.Jiwoo)
-    }
-    LaunchedEffect(recording) {
-        if (recording) {
-            delay(2400)
-            finish(byTimer = true)
-        }
+        listen()
     }
 
-    Box(Modifier.fillMaxSize()) {
-        SceneBackdrop()
-        GlassIconButton(R.drawable.ic_chevron_left, Modifier.padding(start = 18.dp, top = 52.dp), contentDescription = "이전으로", onClick = onBack)
-        Box(Modifier.align(Alignment.TopEnd).padding(top = 58.dp, end = 18.dp)) {
-            TextLink("건너뛰기", Type.LabelMedium, vertical = 8.dp) { voice.stop(); onSkip() }
-        }
-        JiwooCard(
-            line = line,
-            modifier = Modifier.align(Alignment.TopCenter).padding(start = 18.dp, end = 18.dp, top = 108.dp),
-            onListen = { scope.launch { voice.speak(line.ko, Speaker.Jiwoo) } },
-            hideText = hideText,
-            onToggleHide = { hideText = !hideText },
-            showTranslation = showTranslation,
-            onToggleTranslation = { showTranslation = !showTranslation },
-            saved = saved,
-            onToggleSave = { saved = !saved },
-        )
-        SayCard(
-            line = line,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(start = 18.dp, end = 18.dp, bottom = 171.dp + extra),
-            showRoman = showRoman,
-            onToggleRoman = { showRoman = !showRoman },
-            onListen = { scope.launch { voice.speak(line.ko, Speaker.Model) } },
-        )
-        T(
-            when {
-                recording -> "듣고 있어요"
-                askLouder -> "조금 더 크게 말해볼까요?"
-                else -> "눌러서 따라 말하기"
-            },
-            Type.LabelMedium, Color.White,
-            Modifier.align(Alignment.BottomCenter).padding(bottom = 138.dp + extra),
-            align = TextAlign.Center,
-        )
-        MicButton(
-            recording = recording,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 56.dp + extra),
-            onClick = {
-                if (recording) {
-                    finish(byTimer = false)
-                } else if (model.micOn) {
-                    voice.stop(); recStart = SystemClock.uptimeMillis(); recording = true
+    Box(Modifier.fillMaxSize().background(TK.Scene)) {
+        Image(painterResource(R.drawable.img_scene), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        SceneShades(shadeHeight = 339)
+        Box(
+            Modifier.align(Alignment.TopEnd).padding(top = 43.dp, end = 24.dp).size(103.dp, 44.dp).clip(CircleShape)
+                .background(TK.Pill).clickable { speakJob?.cancel(); voice.stop(); onSkip() },
+            contentAlignment = Alignment.Center,
+        ) { T("건너뛰기", TK.text(16, FontWeight.Bold, 23), TK.Text) }
+        PlainCaption(
+            speaker = "지우",
+            modifier = Modifier.align(Alignment.BottomStart).padding(start = 27.dp, bottom = 132.dp + extra),
+            action = { ListenPill("다시 듣기", R.drawable.ic_talk_speaker, listening, Modifier.padding(end = 1.dp)) { listen() } },
+        ) {
+            Box(Modifier.padding(top = 4.dp).fillMaxWidth().height(61.dp), contentAlignment = Alignment.CenterStart) {
+                if (askLouder) {
+                    T(
+                        buildAnnotatedString {
+                            append("조금만 더 ")
+                            withStyle(SpanStyle(color = TK.Mint, textDecoration = TextDecoration.Underline)) { append("크게") }
+                            append(" “안녕하세요”라고 말해 주세요.")
+                        },
+                        TK.text(20, FontWeight.Bold, 29), TK.TextBright,
+                    )
                 } else {
-                    model.requestMic { granted -> if (!granted) toast("마이크를 켜면 따라 말할 수 있어요") }
+                    CaptionText(prompt)
                 }
+            }
+        }
+        VoiceCard(
+            recording = recording,
+            guided = false,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 33.dp + extra),
+            onMic = {
+                val start = { speakJob?.cancel(); voice.stop(); recording = true }
+                if (model.micOn) start()
+                else model.requestMic { granted -> if (granted && model.micOn) start() else toast("마이크를 켜면 따라 말할 수 있어요") }
+            },
+            onSend = {
+                recording = false
+                tries += 1
+                val quiet = model.nextQuiet
+                model.nextQuiet = false
+                if (quiet && tries < 2) askLouder = true else onDone()
             },
         )
     }
 }
 
-/** A-3.3 · 톤 맞추기 완료: 1~2초 뒤 첫 대화로 저절로 넘어간다. */
+/** A-3.3 · 톤 맞추기 완료: 버튼을 눌러 첫 대화를 시작한다. */
 @Composable
 private fun ToneDone(onBack: () -> Unit, onNext: () -> Unit) {
-    LaunchedEffect(Unit) {
-        delay(1600)
-        onNext()
-    }
+    val extra = LocalBottomExtra.current
     Box(Modifier.fillMaxSize()) {
         SceneBackdrop(topAlpha = 1f)
         GlassIconButton(R.drawable.ic_chevron_left, Modifier.padding(start = 18.dp, top = 52.dp), contentDescription = "이전으로", onClick = onBack)
         SceneTitle("좋아요,\n톤이 맞았어요")
+        Box(
+            Modifier.align(Alignment.BottomCenter).padding(start = 24.dp, end = 24.dp, bottom = 68.dp + extra).fillMaxWidth().height(52.dp)
+                .clip(CircleShape).background(TK.MintStrong).clickable(onClick = onNext),
+            contentAlignment = Alignment.Center,
+        ) { T("첫 대화 시작", TK.text(16, FontWeight.Bold, 23), TK.OnMint) }
     }
 }
 
 /** A-5 · 첫 대화 완료: 레벨·점수 없이, 시작할 곳을 장소로 보여준다. */
 @Composable
-private fun FirstTalkDone(onBack: () -> Unit, onGo: () -> Unit) {
+private fun FirstTalkDone(transcript: List<Spoken>, onBack: () -> Unit, onGo: () -> Unit) {
     val extra = LocalBottomExtra.current
     val voice = LocalVoice.current
     val scope = rememberCoroutineScope()
+    var showHistory by remember { mutableStateOf(false) }
+    var showDisplay by remember { mutableStateOf(false) }
+    var showRoman by remember { mutableStateOf(true) }
+    var showTranslation by remember { mutableStateOf(true) }
+    var word by remember { mutableStateOf<Pair<Line, Int>?>(null) }
+    val mine = transcript.filter { it.isMe }
+    BackHandler(enabled = showHistory || showDisplay || word != null) {
+        when {
+            word != null -> word = null
+            showDisplay -> showDisplay = false
+            else -> showHistory = false
+        }
+    }
     Box(Modifier.fillMaxSize()) {
         BlurredBackdrop(R.drawable.img_scene)
         GlassIconButton(R.drawable.ic_chevron_left, Modifier.padding(start = 24.dp, top = 52.dp), contentDescription = "이전으로", onClick = onBack)
+        DarkPill("대화 기록", R.drawable.ic_talk_log, width = 108, modifier = Modifier.align(Alignment.TopEnd).padding(top = 42.dp, end = 18.dp)) {
+            showHistory = true
+        }
         Column(Modifier.padding(start = 24.dp, end = 24.dp, top = 120.dp)) {
             T("벌써 세 마디나\n나눴어요!", Type.TitleLarge, Color.White)
             Box(Modifier.height(8.dp))
@@ -414,14 +432,14 @@ private fun FirstTalkDone(onBack: () -> Unit, onGo: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 T("내 목소리 다시 듣기", Type.LabelMedium, K.OnPhotoMuted)
-                Scripts.firstTalk.turns.forEach { turn ->
+                mine.forEach { said ->
                     Row(
-                        Modifier.fillMaxWidth().clip(CircleShape).clickable { scope.launch { voice.speak(turn.me.ko, Speaker.Me) } },
+                        Modifier.fillMaxWidth().clip(CircleShape).clickable { scope.launch { voice.speak(said.line.ko, Speaker.Me) } },
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) { Ic(R.drawable.ic_volume, tint = K.TextTertiary) }
-                        T(turn.me.ko, Type.BodyLarge, Color.White)
+                        T(said.line.ko, Type.BodyLarge, Color.White)
                     }
                 }
             }
@@ -449,5 +467,21 @@ private fun FirstTalkDone(onBack: () -> Unit, onGo: () -> Unit) {
             "지우 만나러 가기",
             Modifier.align(Alignment.BottomCenter).padding(start = 24.dp, end = 24.dp, bottom = 44.dp + extra).fillMaxWidth(),
         ) { voice.stop(); onGo() }
+
+        if (showHistory) {
+            HistorySheet(
+                "한강", transcript, playing = null, showRoman, showTranslation,
+                onListen = { scope.launch { voice.speak(it.line.ko, if (it.isMe) Speaker.Me else Speaker.Jiwoo) } },
+                onWord = { l, i -> word = l to i },
+                onDisplay = { showDisplay = true },
+                onClose = { voice.stop(); showHistory = false },
+            )
+        }
+        word?.let { (l, i) ->
+            WordSheet(l, i, playing = false, onListen = { scope.launch { voice.speak(it, Speaker.Model) } }, onClose = { word = null })
+        }
+        if (showDisplay) {
+            DisplaySheet(showRoman, showTranslation, { showRoman = it }, { showTranslation = it }) { showDisplay = false }
+        }
     }
 }
