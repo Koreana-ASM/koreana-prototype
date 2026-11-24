@@ -168,7 +168,7 @@ fun HomeScreen(model: AppModel, onOpenDebug: () -> Unit) {
     BackHandler(enabled = openPlace != null) { openPlace = null }
 
     val start: () -> Unit = { model.startToday() }
-    val replayToday: () -> Unit = { model.replay(model.lastScript) }
+    val replayToday: () -> Unit = { model.watch(model.lastScript) }
 
     // 상태마다 지우의 말, 주 행동, 보조 행동이 달라진다.
     val label: String
@@ -194,7 +194,7 @@ fun HomeScreen(model: AppModel, onOpenDebug: () -> Unit) {
         inProgress != null -> {
             label = "지우"; message = "어디까지 했죠? 이어서 이야기해요!"
             primary = start
-            helpers = listOf(Helper("${inProgress + 1} / ${model.currentScript.turns.size} · 이어서 하기", start))
+            helpers = listOf(Helper("${inProgress + 1} / ${model.currentScript.turns.size + 1} · 이어서 하기", start))
         }
         micOff -> {
             label = "지우"; message = "마이크를 켜면 이야기할 수 있어요"
@@ -209,8 +209,7 @@ fun HomeScreen(model: AppModel, onOpenDebug: () -> Unit) {
         }
         model.variant == HomeVariant.MeFirst -> {
             label = "지금 지우는"; message = "라면을 고르고 있어요"
-            primary = start
-            helpers = listOf(Helper("말 걸기", start))
+            primary = start; helpers = emptyList()
         }
         model.variant == HomeVariant.Returning -> {
             label = "지우"; message = "오랜만이에요! 보고 싶었어요."
@@ -291,6 +290,10 @@ fun HomeScreen(model: AppModel, onOpenDebug: () -> Unit) {
                 }
             }
 
+            // B-2 · 내가 먼저인 날에는 지우 위에 "말 걸기"가 뜬다.
+            if (waiting && model.variant == HomeVariant.MeFirst) {
+                CenteredAt(184, 322) { GlassChip("말 걸기", onClick = primary) }
+            }
             if (showBubble) {
                 At(156, 316) {
                     Box(
@@ -312,7 +315,7 @@ fun HomeScreen(model: AppModel, onOpenDebug: () -> Unit) {
                         T(place.sub, Type.Micro, K.TextSecondary)
                         Box(
                             Modifier.height(48.dp).clip(CircleShape).background(K.BrandPrimary)
-                                .clickable { openPlace = null; model.replay(place.script) }.padding(horizontal = 28.dp),
+                                .clickable { openPlace = null; model.watch(place.script) }.padding(horizontal = 28.dp),
                             contentAlignment = Alignment.Center,
                         ) { T("다시 보기", Type.LabelLarge, Color.White) }
                     }
