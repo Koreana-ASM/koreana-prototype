@@ -5,94 +5,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
-data class Line(val ko: String, val en: String, val roman: String = "")
-
-/** 한 마디: 지우의 말(없으면 내가 먼저) + 내가 할 말. [flagged]는 "다시 들어볼 어절". */
-data class Turn(val jiwoo: Line?, val me: Line, val flagged: String? = null)
-
-data class Script(
-    val place: String,
-    val turns: List<Turn>,
-    val closing: Line,
-)
-
-/** 어절 안내(C-6)에 보여줄 정보. */
-data class WordInfo(
-    val word: String,
-    val ipa: String,
-    val parts: List<Pair<String, String>>,
-    val explanation: String,
-    val translation: String,
-)
-
-object Scripts {
-    /** A-4 · 온보딩 첫 대화. */
-    val firstTalk = Script(
-        place = "한강",
-        turns = listOf(
-            Turn(Line("안녕하세요! 저는 지우예요.", "Hello! I'm Jiwoo."), Line("만나서 반가워요.", "Nice to meet you.", "mannaseo bangawoyo.")),
-            // 지우의 두 번째 말은 Figma에 없어 임시로 넣은 문장.
-            Turn(Line("쉬는 날에 뭐 해요?", "What do you do on your days off?"), Line("쉬는 날에는 카페에 가요.", "On my days off, I go to a cafe.", "swineun nareneun kapee gayo.")),
-            Turn(Line("주말에 같이 카페 갈까요?", "Shall we go to a cafe this weekend?"), Line("좋아요. 주말에 같이 가요.", "Sure. Let's go this weekend.", "joayo. jumare gachi gayo.")),
-        ),
-        closing = Line("오늘 반가웠어요. 또 만나요!", "It was nice meeting you. See you again!"),
-    )
-
-    /** C · 편의점 (지우가 먼저). */
-    val store = Script(
-        place = "편의점",
-        turns = listOf(
-            Turn(Line("뭐 먹을래요?", "What do you want to eat?"), Line("라면 먹고 싶어요.", "I want to eat ramen.", "ramyeon meokgo sipeoyo."), flagged = "먹고"),
-            // 두 번째 내 문장은 Figma에 없어 임시로 넣은 문장.
-            Turn(Line("좋아요! 매운 거 괜찮아요?", "Great! Is spicy food okay?"), Line("네, 괜찮아요.", "Yes, that's fine.", "ne, gwaenchanayo.")),
-        ),
-        closing = Line("그럼 이걸로 해요. 내일은 다리 위에서 만나요!", "Let's get this one. See you on the bridge tomorrow!"),
-    )
-
-    /** C-11 · 내가 먼저인 대화. 첫 문장만 Figma, 나머지는 임시. */
-    val meFirst = Script(
-        place = "편의점",
-        turns = listOf(
-            Turn(null, Line("이거 뭐예요?", "What is this?", "igeo mwoyeyo?")),
-            Turn(Line("삼각김밥이에요. 맛있어요!", "It's a triangle kimbap. It's tasty!"), Line("그럼 이것도 주세요.", "Then I'll take this too, please.", "geureom igeotdo juseyo.")),
-        ),
-        closing = Line("좋아요, 같이 계산해요. 내일은 다리 위에서 만나요!", "Okay, let's pay together. See you on the bridge tomorrow!"),
-    )
-
-    /** 하루 세 번째 대화 (임시 문장). */
-    val outside = Script(
-        place = "편의점",
-        turns = listOf(
-            Turn(Line("어디에서 먹을까요?", "Where shall we eat?"), Line("밖에서 먹어요.", "Let's eat outside.", "bakkeseo meogeoyo.")),
-            Turn(Line("좋아요! 오늘 날씨가 좋네요.", "Sounds good! The weather is nice today."), Line("네, 정말 좋아요.", "Yes, it's really nice.", "ne, jeongmal joayo.")),
-        ),
-        closing = Line("오늘 즐거웠어요. 내일은 다리 위에서 만나요!", "I had fun today. See you on the bridge tomorrow!"),
-    )
-
-    /** B-11 · 지난 곳 다시 보기 (임시 문장). */
-    val pocha = Script(
-        place = "포장마차 · 떡볶이",
-        turns = listOf(Turn(Line("떡볶이 좋아해요?", "Do you like tteokbokki?"), Line("네, 좋아해요.", "Yes, I like it."))),
-        closing = Line("그럼 같이 먹어요!", "Then let's eat together!"),
-    )
-    val hanok = Script(
-        place = "한옥 카페 · 차 한 잔",
-        turns = listOf(Turn(Line("차 마실래요?", "Would you like some tea?"), Line("네, 마시고 싶어요.", "Yes, I'd like some."))),
-        closing = Line("여기 차가 맛있어요.", "The tea here is good."),
-    )
-
-    val words = mapOf(
-        "먹고" to WordInfo(
-            word = "먹고",
-            ipa = "[mʌk̚.k͈o]",
-            parts = listOf("먹" to "동사", "고" to "연결 어미"),
-            explanation = "‘먹다’에 ‘-고 싶다’가 이어진 표현이에요. ‘먹고 싶어요’는 먹기를 바란다는 뜻이에요.",
-            translation = "want to eat",
-        ),
-    )
-}
-
-enum class TalkMode { Onboarding, Main, ReplayOnly }
+/** [ViewOnly]는 장면만 보기: 마이크 없이 보거나, 지난 대화를 다시 볼 때. */
+enum class TalkMode { Onboarding, Main, ViewOnly }
 
 data class TalkConfig(
     val script: Script,
@@ -153,8 +67,7 @@ class AppModel {
     var forceMicOff by mutableStateOf(false)
     val micOn: Boolean get() = micPermission && !forceMicOff
 
-    /** 목업 스위치: 인터넷 끊김(C-14), 다음 발화를 "소리가 작음"으로(C-12 / A-3.2b). */
-    var offline by mutableStateOf(false)
+    /** 목업 스위치: 다음에 보내는 말이 잘 안 들린 것으로 한다 (A-3.2b, 발음 확인, 잘 안 들린 부분 확인). */
     var nextQuiet by mutableStateOf(false)
 
     var requestMic: ((onResult: (Boolean) -> Unit) -> Unit) = { it(false) }
@@ -162,25 +75,25 @@ class AppModel {
     private var nonce = 0
     val dailyLimit = 3
 
-    private fun todayScripts(): List<Script> =
-        if (variant == HomeVariant.MeFirst) listOf(Scripts.meFirst, Scripts.store, Scripts.outside)
-        else listOf(Scripts.store, Scripts.meFirst, Scripts.outside)
-
-    val currentScript: Script get() = todayScripts()[doneToday.coerceIn(0, dailyLimit - 1)]
-    val lastScript: Script get() = todayScripts()[(doneToday - 1).coerceIn(0, dailyLimit - 1)]
+    /** 오늘의 대화. Figma에 있는 본편 대화는 편의점 한 편이라 "더 하기"도 같은 대화를 쓴다. */
+    val currentScript: Script get() = Scripts.store
+    val lastScript: Script get() = Scripts.store
     val canDoMore: Boolean get() = doneToday < dailyLimit && !neighborhoodDone
 
     fun startToday(enterFromMap: Boolean = true) {
+        // B-9 · 마이크 권한이 없으면 장면만 본다.
+        if (!micOn) return watch(currentScript)
         screen = Screen.Talk(
             TalkConfig(currentScript, TalkMode.Main, startTurn = inProgressTurn ?: 0, enterFromMap = enterFromMap, nonce = ++nonce),
         )
     }
 
-    fun replay(script: Script) {
-        screen = Screen.Talk(TalkConfig(script, TalkMode.ReplayOnly, nonce = ++nonce))
+    /** 장면만 보기 (지난 대화 다시 보기, 마이크 없이 보기). */
+    fun watch(script: Script) {
+        screen = Screen.Talk(TalkConfig(script, TalkMode.ViewOnly, nonce = ++nonce))
     }
 
-    /** C-13 · 도중에 나감: 확인 없이 저장하고 홈이 "이어서 하기"로. */
+    /** 도중에 나감: 확인 없이 저장하고 홈이 "이어서 하기"로 (B-3). */
     fun leaveTalk(atTurn: Int) {
         inProgressTurn = atTurn
         screen = Screen.Home
@@ -189,6 +102,7 @@ class AppModel {
     fun finishTalk(more: Boolean) {
         inProgressTurn = null
         doneToday = (doneToday + 1).coerceAtMost(dailyLimit)
+        stars += 2
         if (more && canDoMore) {
             startToday(enterFromMap = false)
         } else {
@@ -212,7 +126,7 @@ class AppModel {
             Scenario.A1 -> { signedUp = false; onboardingKey++; screen = Screen.Onboarding }
             Scenario.B1 -> Unit
             Scenario.B2 -> variant = HomeVariant.MeFirst
-            Scenario.B3 -> inProgressTurn = 1
+            Scenario.B3 -> inProgressTurn = 0
             Scenario.B4 -> { doneToday = 1; stars = 26 }
             Scenario.B5 -> { doneToday = 3; stars = 30 }
             Scenario.B6 -> { variant = HomeVariant.Returning; streak = 1 }

@@ -58,11 +58,10 @@ fun DebugPanel(model: AppModel, onClose: () -> Unit) {
                 }
             }
             Box(Modifier.height(14.dp))
-            T("대화 중 예외 (C-12 · C-14 · C-15)", Type.Caption, K.TextTertiary)
+            T("대화 중 예외", Type.Caption, K.TextTertiary)
             Box(Modifier.height(8.dp))
-            Toggle("다음 발화를 ‘소리 작음’으로", model.nextQuiet) { model.nextQuiet = it }
-            Toggle("인터넷 끊김", model.offline) { model.offline = it }
-            Toggle("마이크 권한 없음", model.forceMicOff) { model.forceMicOff = it }
+            Toggle("다음에 보내는 말이 잘 안 들림", model.nextQuiet) { model.nextQuiet = it }
+            Toggle("마이크 권한 없음 · 장면만 보기", model.forceMicOff) { model.forceMicOff = it }
         }
     }
 }

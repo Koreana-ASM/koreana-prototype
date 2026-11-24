@@ -138,7 +138,7 @@ private fun App(model: AppModel, voice: Voice) {
                                     else -> model.screen = Screen.Home
                                 }
                             },
-                            onFinished = { more -> model.finishTalk(more) },
+                            onFinished = { model.finishTalk(more = false) },
                         )
                     }
                 }

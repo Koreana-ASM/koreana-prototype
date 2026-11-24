@@ -119,24 +119,6 @@ fun GlassIconButton(
     ) { Ic(icon, tint = Color.White) }
 }
 
-/** Icon Button · 밝은 카드 위 (brand soft). */
-@Composable
-fun SoftIconButton(
-    @DrawableRes icon: Int,
-    active: Boolean = false,
-    iconSize: Dp = 24.dp,
-    onClick: () -> Unit,
-) {
-    Box(
-        Modifier
-            .size(44.dp)
-            .clip(CircleShape)
-            .background(if (active) K.BrandPrimary else K.BrandSoft)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) { Ic(icon, size = iconSize, tint = if (active) Color.White else K.BrandPrimary) }
-}
-
 /** Button · Primary (사진 위 흰색 주 버튼). */
 @Composable
 fun PrimaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
@@ -202,29 +184,6 @@ fun SceneBackdrop(topAlpha: Float = 0.7f, bottomAlpha: Float = 0.8f) {
         )
         Box(Modifier.fillMaxSize().alpha(topAlpha).background(K.ScrimTop))
         Box(Modifier.fillMaxSize().alpha(bottomAlpha).background(K.ScrimBottom))
-    }
-}
-
-/** 진행 점 (대화의 마디 수). */
-@Composable
-fun ProgressDots(total: Int, done: Int, modifier: Modifier = Modifier) {
-    Row(
-        modifier
-            .height(28.dp)
-            .clip(CircleShape)
-            .background(K.GlassRegular)
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        repeat(total) { i ->
-            Box(
-                Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(if (i < done) Color.White else Color.White.copy(alpha = 0.35f)),
-            )
-        }
     }
 }
 
