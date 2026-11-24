@@ -72,3 +72,40 @@ object Type {
 
 /** 3버튼 내비게이션처럼 하단 시스템 바가 클 때 아래쪽 요소를 올려주는 여유값. */
 val LocalBottomExtra = compositionLocalOf<Dp> { 0.dp }
+
+/** 대화 화면(C)과 온보딩 첫 대화의 색. 장면 그림 위에 짙은 초록 바탕을 쓴다. */
+object TK {
+    val Scene = Color(0xFF10241F)
+    val Pill = Color(0xFF213D33)
+    val PillStroke = Color(0x8C789282)
+    val ListenStroke = Color(0x6BA2C2A8)
+    val CloseStroke = Color(0x5C789282)
+    val Mint = Color(0xFFC8E9CB)
+    val MintStrong = Color(0xFFAFDEBE)
+    val OnMint = Color(0xFF19392F)
+    val Text = Color(0xFFF7F8EF)
+    val TextBright = Color(0xFFFBFAF2)
+    val Muted = Color(0xFFB7CABF)
+    val Me = Color(0xFFF2D08C)
+    val Recording = Color(0xFFFF8E80)
+    val Sheet = Color(0xFF142C25)
+    val SheetScrim = Color(0xFF081810)
+    val Handle = Color(0xFF789282)
+    val Divider = Color(0xFF3B584B)
+    val JiwooCard = Color(0xFF203B31)
+    val MeCard = Color(0xFF344537)
+    val InputCard = Color(0xF518362F)
+    val InputStroke = Color(0x61AFDEBE)
+    val SwitchOff = Color(0xFF52645C)
+    val SwitchKnobOff = Color(0xFFD6E0D8)
+    val Choice = Color(0xFF18362F)
+    val ChoiceTag = Color(0xFFDFEAE2)
+
+    /** 글자 크기, 굵기, 줄 높이(sp). 자간은 Figma와 같이 크기의 -1%. */
+    fun text(size: Int, weight: FontWeight, lineHeight: Int) = TextStyle(
+        fontSize = size.sp,
+        fontWeight = weight,
+        lineHeight = lineHeight.sp,
+        letterSpacing = (-size * 0.01f).sp,
+    )
+}
