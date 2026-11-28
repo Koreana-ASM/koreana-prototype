@@ -32,12 +32,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.koreana.prototype.Line
 import com.koreana.prototype.R
 import com.koreana.prototype.Spoken
+import com.koreana.prototype.Words
 import com.koreana.prototype.romanize
 import com.koreana.prototype.ui.Ic
 import com.koreana.prototype.ui.LocalBottomExtra
@@ -208,221 +213,118 @@ fun HistorySheet(
     }
 }
 
-/** 지난 대사: "이전"을 누르면 앞서 나눈 말을 한 줄씩 다시 본다. 마지막에서 "다음"을 누르면 닫힌다. */
-@Composable
-fun PastLineSheet(
-    items: List<Spoken>,
-    start: Int,
-    playing: Line?,
-    showRoman: Boolean,
-    showTranslation: Boolean,
-    onListen: (Spoken) -> Unit,
-    onWord: (Line, Int) -> Unit,
-    onClose: () -> Unit,
-) {
-    val extra = LocalBottomExtra.current
-    var index by remember { mutableIntStateOf(start.coerceIn(0, items.lastIndex)) }
-    val item = items[index]
-    SheetScrim(onDismiss = onClose) {
-        Box(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 30.dp + extra)
-                .size(364.dp, 351.dp)
-                .clip(RoundedCornerShape(22.dp))
-                .background(TK.Sheet)
-                .border(1.dp, TK.PillStroke, RoundedCornerShape(22.dp))
-                .plainClick { },
-        ) {
-            T("지난 대사", TK.text(14, FontWeight.Bold, 19), TK.Mint, Modifier.padding(start = 19.dp, top = 16.dp))
-            RoundClose(Modifier.align(Alignment.TopEnd).padding(top = 11.dp, end = 13.dp), onClose)
-            Box(Modifier.padding(start = 23.dp, top = 61.dp)) {
-                SpokenBlock(item, playing == item.line, showRoman, showTranslation, { onListen(item) }) { onWord(item.line, it) }
-            }
-            Row(
-                Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp),
-                horizontalArrangement = Arrangement.spacedBy(59.dp),
-            ) {
-                DarkPill("이전", R.drawable.ic_talk_prev, width = 112, enabled = index > 0) { index -= 1 }
-                MintPill("다음", width = 112, arrow = true) { if (index < items.lastIndex - 1) index += 1 else onClose() }
-            }
-        }
+/** 문장 안의 [focus]만 밝게 보인다. */
+private fun focused(sentence: String, focus: String) = buildAnnotatedString {
+    val at = sentence.indexOf(focus)
+    if (at < 0 || focus.isEmpty()) {
+        append(sentence)
+    } else {
+        append(sentence.substring(0, at))
+        withStyle(SpanStyle(color = TK.MintStrong)) { append(focus) }
+        append(sentence.substring(at + focus.length))
     }
 }
 
-/** 예시로 뜻을 넣어 둔 표현 (편의점 대화). 없는 표현은 로마자와 문장만 보여준다. */
-private val glossary = mapOf(
-    "여기서" to "here", "저녁" to "dinner", "먹고" to "eat", "갈까요" to "shall we go", "저는" to "I", "따뜻한" to "warm",
-    "게" to "something", "당기네요" to "feel like having", "오늘은" to "today", "뭐" to "what", "싶어요" to "would like to",
-    "라면" to "ramyeon", "좋죠" to "sounds good", "그럼" to "then", "제가" to "I", "뜨거운" to "hot", "물" to "water",
-    "받아" to "get", "올게요" to "I'll be back", "저기" to "over there", "자리가" to "a seat", "있네요" to "there is",
-    "같이" to "together", "앉아요" to "let's sit", "삼각김밥" to "a triangular rice ball",
-)
-
-private fun bare(word: String) = word.filter { it.isLetterOrDigit() }
-
-/** 대화 속 표현: 어절을 누르면 읽는 법과 뜻을 보고, 문장 안의 다른 어절로 옮겨 갈 수 있다. */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun WordSheet(line: Line, start: Int, playing: Boolean, onListen: (String) -> Unit, onClose: () -> Unit) {
-    var index by remember(line) { mutableIntStateOf(start.coerceIn(0, line.words.lastIndex)) }
-    val word = bare(line.words[index])
-    SheetScrim(alpha = 0.52f, onDismiss = onClose) {
-        BottomSheet {
-            Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 17.dp), verticalAlignment = Alignment.CenterVertically) {
-                T("대화 속 표현", TK.text(14, FontWeight.Bold, 19), TK.Mint, Modifier.weight(1f))
-                PlainClose(onClick = onClose)
-            }
-            Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 43.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    T(word, TK.text(28, FontWeight.Bold, 40), TK.Text)
-                    T(romanize(word), TK.text(17, FontWeight.Normal, 24), TK.Mint)
-                }
-                ListenPill("단어 듣기", R.drawable.ic_talk_speaker, playing, Modifier.width(105.dp)) { onListen(word) }
-            }
-            glossary[word]?.let { T(it, TK.text(17, FontWeight.Normal, 24), TK.Text, Modifier.padding(start = 25.dp, top = 11.dp)) }
-            Spacer(Modifier.height(18.dp))
-            Box(Modifier.padding(horizontal = 24.dp).fillMaxWidth().height(1.dp).background(TK.Divider))
-            Spacer(Modifier.height(14.dp))
-            FlowRow(Modifier.padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                line.words.forEachIndexed { i, w ->
-                    Box(
-                        Modifier.clip(RoundedCornerShape(6.dp)).background(if (i == index) TK.Divider else TK.Sheet)
-                            .clickable { index = i }.padding(horizontal = 2.dp),
-                    ) { T(w, TK.text(17, FontWeight.Bold, 26), TK.Text, maxLines = 1) }
-                }
-            }
-            T(line.en, TK.text(16, FontWeight.Normal, 24), TK.SwitchKnobOff, Modifier.padding(start = 26.dp, end = 24.dp, top = 10.dp))
-            Spacer(Modifier.height(48.dp))
-        }
-    }
+private fun SheetLabel(text: String) {
+    T(text, TK.text(13, FontWeight.Bold, 16), TK.Muted, maxLines = 1)
 }
-
-/** 확인 시트의 공통 머리: 작은 제목, 닫기, 큰 질문. */
-@Composable
-private fun CheckHeader(label: String, title: String, onClose: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(start = 26.dp, end = 24.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        T(label, TK.text(14, FontWeight.Bold, 19), TK.Mint, Modifier.weight(1f))
-        PlainClose(onClick = onClose)
-    }
-    T(title, TK.text(24, FontWeight.Bold, 33), TK.Text, Modifier.padding(start = 25.dp, top = 4.dp))
-}
-
-@Composable
-private fun TwoButtons(left: String, right: String, onLeft: () -> Unit, onRight: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinePill(left, Modifier.width(153.dp), onLeft)
-        Box(
-            Modifier.weight(1f).height(42.dp).clip(CircleShape).background(TK.Mint).clickable(onClick = onRight),
-            contentAlignment = Alignment.Center,
-        ) { T(right, TK.text(15, FontWeight.Bold, 21), TK.OnMint, maxLines = 1) }
-    }
-}
-
-/** 자유 답변에서 일부가 잘 안 들렸을 때: 들린 대로 이어가거나 다시 말한다. 틀렸다고 하지 않는다. */
-@Composable
-fun UnclearSheet(heard: String, onKeep: () -> Unit, onRetry: () -> Unit) {
-    SheetScrim(alpha = 0.52f, onDismiss = onKeep) {
-        BottomSheet {
-            CheckHeader("내가 보낸 말", "어떤 말이었나요?", onKeep)
-            T("이렇게 들렸어요", TK.text(14, FontWeight.Medium, 19), TK.Mint, Modifier.padding(start = 27.dp, top = 22.dp))
-            T(heard, TK.text(20, FontWeight.Medium, 29), TK.Text, Modifier.padding(start = 27.dp, top = 12.dp))
-            T("일부 소리가 잘 들리지 않았어요.", TK.text(14, FontWeight.Medium, 19), TK.Mint, Modifier.padding(start = 27.dp, top = 40.dp))
-            Spacer(Modifier.height(60.dp))
-            TwoButtons("이대로 대화하기", "다시 말하기", onKeep, onRetry)
-            Spacer(Modifier.height(20.dp))
-        }
-    }
-}
-
-private enum class Practice { Compare, Ready, Recording, Done }
 
 /**
- * 발음 확인과 단어 연습: 추천 문장에서 한 단어가 다르게 들렸을 때 그 단어만 따로 말해 본다.
- * [heard]는 들린 말, [word]는 연습할 단어, [sentence]는 그 단어가 있던 문장.
+ * 단어 시트(2단계): 어절 말풍선의 "더 보기"로 열린다. 짜임, 문장 속 위치, 지난 대화의 예문.
+ * 노트에서는 같은 시트 아래에 내 목소리와 "다시 말해 보기"가 [more]로 붙는다.
  */
 @Composable
-fun PronounceSheet(
-    heard: String,
+fun WordSheet(
     word: String,
-    hint: String,
-    sentence: String,
+    sentence: Line?,
+    saved: Boolean,
     playing: Boolean,
-    onListen: () -> Unit,
-    onMic: (onGranted: () -> Unit) -> Unit,
-    onBack: () -> Unit,
+    onListen: (String) -> Unit,
+    onSave: () -> Unit,
+    onClose: () -> Unit,
+    label: String = "대화 속 표현",
+    roman: String = romanize(Words.bare(word)),
+    meaning: String? = Words.info(word)?.meaning,
+    more: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
-    var stage by remember { mutableStateOf(Practice.Compare) }
-    val syllables = word.toList().joinToString("·")
-    SheetScrim(alpha = 0.52f, onDismiss = onBack) {
-        BottomSheet {
-            if (stage == Practice.Compare) {
-                CheckHeader("내가 보낸 말", "이 단어를 확인해 볼까요?", onBack)
+    val extra = LocalBottomExtra.current
+    val bare = Words.bare(word)
+    val info = Words.info(word)
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.45f)).plainClick(onClick = onClose)) {
+        Column(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .background(TK.Sheet2)
+                .plainClick { }
+                .padding(start = 24.dp, end = 24.dp, top = 18.dp, bottom = 34.dp + extra),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(Modifier.size(40.dp, 5.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.3f)))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) { SheetLabel(label) }
+                Ic(
+                    if (saved) R.drawable.ic_mark_fill else R.drawable.ic_mark, size = 20.dp, tint = TK.Text,
+                    modifier = Modifier.clip(CircleShape).clickable(onClick = onSave),
+                )
+                Spacer(Modifier.width(14.dp))
+                Ic(R.drawable.ic_talk_close, size = 20.dp, tint = TK.Text, modifier = Modifier.clip(CircleShape).clickable(onClick = onClose))
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    T(bare, TK.text(30, FontWeight.Bold, 36), TK.Text, maxLines = 1)
+                    T(if (meaning.isNullOrEmpty()) roman else "$roman · $meaning", TK.text(15, FontWeight.Normal, 18), TK.Muted, maxLines = 1)
+                }
                 Row(
-                    Modifier.padding(start = 24.dp, end = 24.dp, top = 14.dp).fillMaxWidth().height(94.dp)
-                        .clip(RoundedCornerShape(13.dp)).background(TK.Pill).padding(horizontal = 16.dp),
+                    Modifier.clip(CircleShape).background(if (playing) TK.Divider else TK.Pill).border(1.dp, TK.ListenStroke, CircleShape)
+                        .clickable { onListen(bare) }.padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        T("이렇게 들렸어요", TK.text(12, FontWeight.Medium, 17), TK.Muted)
-                        T(heard, TK.text(24, FontWeight.Bold, 33), TK.Recording, maxLines = 1)
-                    }
-                    Ic(R.drawable.ic_talk_chevron, size = 12.dp, modifier = Modifier.padding(horizontal = 12.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        T("연습할 단어", TK.text(12, FontWeight.Medium, 17), TK.Muted)
-                        T(word, TK.text(24, FontWeight.Bold, 33), TK.Text, maxLines = 1)
-                    }
-                }
-                Row(Modifier.fillMaxWidth().padding(start = 27.dp, end = 26.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    T(syllables, TK.text(17, FontWeight.Medium, 24), TK.Text, Modifier.weight(1f))
-                    ListenPill("다시 듣기", R.drawable.ic_talk_speaker, playing, onClick = onListen)
-                }
-                T(hint, TK.text(14, FontWeight.Normal, 20), TK.Muted, Modifier.padding(start = 27.dp, end = 27.dp, top = 14.dp))
-                Spacer(Modifier.height(22.dp))
-                TwoButtons("대화로 돌아가기", "이 단어 연습", onBack) { stage = Practice.Ready }
-            } else {
-                Row(Modifier.fillMaxWidth().padding(start = 26.dp, end = 24.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    T("단어 연습", TK.text(14, FontWeight.Bold, 19), TK.Mint, Modifier.weight(1f))
-                    PlainClose(onClick = onBack)
-                }
-                T(word, TK.text(40, FontWeight.Bold, 56), TK.Text, Modifier.padding(start = 26.dp, top = 8.dp))
-                Row(Modifier.fillMaxWidth().padding(start = 27.dp, end = 26.dp).height(34.dp), verticalAlignment = Alignment.CenterVertically) {
-                    T(syllables, TK.text(17, FontWeight.Medium, 24), TK.Mint, Modifier.weight(1f))
-                    if (stage == Practice.Ready) ListenPill("다시 듣기", R.drawable.ic_talk_speaker, playing, onClick = onListen)
-                }
-                T(sentence, TK.text(16, FontWeight.Medium, 23), TK.Text, Modifier.padding(start = 27.dp, top = 26.dp))
-                Box(Modifier.padding(start = 27.dp, top = 28.dp).height(28.dp), contentAlignment = Alignment.CenterStart) {
-                    when (stage) {
-                        Practice.Recording -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Waveform(color = TK.Recording, bars = 5)
-                            T("녹음 중", TK.text(14, FontWeight.Bold, 20), TK.Recording)
-                        }
-                        Practice.Done -> T("한 번 더 말해 봤어요.", TK.text(14, FontWeight.Normal, 20), TK.Muted)
-                        else -> T("마이크를 누르고 이 단어만 말해 보세요.", TK.text(14, FontWeight.Normal, 20), TK.Muted)
-                    }
-                }
-                Spacer(Modifier.height(20.dp))
-                Box(
-                    Modifier.padding(horizontal = 24.dp).fillMaxWidth().height(48.dp).clip(CircleShape).background(TK.Mint).clickable {
-                        when (stage) {
-                            Practice.Ready -> onMic { stage = Practice.Recording }
-                            Practice.Recording -> stage = Practice.Done
-                            else -> onBack()
-                        }
-                    },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    T(
-                        when (stage) {
-                            Practice.Ready -> "마이크 켜기"
-                            Practice.Recording -> "보내기"
-                            else -> "대화로 돌아가기"
-                        },
-                        TK.text(15, FontWeight.Bold, 21), TK.OnMint,
-                    )
+                    Ic(R.drawable.ic_sound, size = 13.dp, tint = TK.Text)
+                    T(if (playing) "듣는 중" else "단어 듣기", TK.text(12, FontWeight.Medium, 15), TK.Text, maxLines = 1)
                 }
             }
-            Spacer(Modifier.height(18.dp))
+            if (info != null && info.parts.isNotEmpty()) {
+                SheetLabel("짜임")
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    info.parts.forEachIndexed { i, part ->
+                        if (i > 0) T("+", TK.text(16, FontWeight.Bold, 19), TK.Muted)
+                        Column(
+                            Modifier.clip(RoundedCornerShape(12.dp)).background(TK.Pill).border(1.dp, TK.ListenStroke, RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            T(part.ko, TK.text(15, FontWeight.Bold, 18), TK.Text, maxLines = 1)
+                            T(part.en, TK.text(12, FontWeight.Normal, 15), TK.Muted, maxLines = 1)
+                        }
+                    }
+                }
+            }
+            if (sentence != null) {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(TK.SheetLine))
+                SheetLabel("이 문장에서")
+                T(focused(sentence.ko, bare), TK.text(16, FontWeight.Bold, 20), TK.Text)
+                T(sentence.en, TK.text(13, FontWeight.Normal, 16), TK.Muted)
+            }
+            info?.example?.let { example ->
+                SheetLabel("지난 대화에서")
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(TK.Pill).border(1.dp, TK.ListenStroke, RoundedCornerShape(14.dp))
+                        .clickable { onListen(example.ko) }.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        T(focused(example.ko, example.focus), TK.text(15, FontWeight.Bold, 18), TK.Text)
+                        T("${example.en} · ${example.from}", TK.text(12, FontWeight.Normal, 15), TK.Muted, maxLines = 1)
+                    }
+                    Ic(R.drawable.ic_sound, size = 18.dp, tint = TK.Text)
+                }
+            }
+            more?.invoke(this)
         }
     }
 }

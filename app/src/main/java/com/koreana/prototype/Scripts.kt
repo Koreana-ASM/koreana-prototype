@@ -1,12 +1,21 @@
 package com.koreana.prototype
 
-/** 한 줄의 대사. 로마자는 [romanize]로 어절마다 만든다. */
-data class Line(val ko: String, val en: String) {
+/**
+ * 한 줄의 대사. 로마자는 [romanize]로 어절마다 만든다.
+ * [emphasis]는 강조해 보일 어절(단어 안내의 "눌러").
+ */
+data class Line(val ko: String, val en: String, val emphasis: Int = -1) {
     val words: List<String> get() = ko.split(" ")
 }
 
-/** 내가 한 말과 그 말에 대한 지우의 반응. */
-data class Reply(val me: Line, val reaction: Line)
+/** 보내기 전에 보이는 발음 표시: 주황은 조금 다르게, 빨강은 다른 소리로 들린 어절. */
+enum class MarkLevel { Fair, Poor }
+
+/** [index]번째 어절이 [heard]로 들렸다 (목업). */
+data class Mark(val index: Int, val heard: String, val level: MarkLevel)
+
+/** 내가 한 말과 그 말에 대한 지우의 반응. [mark]가 있으면 보내기 전에 한 번 멈춘다. */
+data class Reply(val me: Line, val reaction: Line, val mark: Mark? = null)
 
 /**
  * 한 마디: 지우의 질문에 추천 문장([guided])을 따라 말하거나 내 말([free])로 답한다.
@@ -19,7 +28,7 @@ data class Script(
     /** 질문 전에 지우가 먼저 건네는 말. */
     val intro: List<Line>,
     val turns: List<Turn>,
-    val closing: Line,
+    val closing: Line?,
 )
 
 /** 대화에서 실제로 오간 한 줄 (대화 기록에 쌓인다). */
@@ -31,17 +40,17 @@ object Scripts {
         // 0 · 친구와 대화
         listOf(
             Turn(
-                Line("안녕하세요! 저는 지우예요. 이름이 뭐예요?", "Hello! I'm Jiwoo. What's your name?"),
-                guided = Reply(Line("저는 민수예요. 만나서 반가워요.", "I'm Minsu. It's nice to meet you."), Line("민수 씨, 만나서 반가워요!", "Minsu, it's nice to meet you!")),
-                free = Reply(Line("저는 알렉스예요.", "I'm Alex."), Line("알렉스 씨, 만나서 반가워요!", "Alex, it's nice to meet you!")),
+                Line("안녕하세요! 저는 지우예요. 만나서 반가워요.", "Hello! I'm Jiwoo. Nice to meet you."),
+                guided = Reply(Line("저도 만나서 반가워요.", "Nice to meet you, too."), Line("우리 친하게 지내요!", "Let's be good friends!")),
+                free = Reply(Line("안녕하세요! 반가워요.", "Hello! Nice to meet you."), Line("네, 반가워요! 우리 친하게 지내요.", "Nice to meet you, too! Let's be good friends.")),
             ),
             Turn(
-                Line("만나서 반가워요! 쉬는 날에는 주로 뭘 해요?", "Nice to meet you! What do you usually do on your days off?"),
+                Line("쉬는 날에는 주로 뭘 해요?", "What do you usually do on days off?"),
                 guided = Reply(Line("쉬는 날에는 카페에 가요.", "I go to a café on my days off."), Line("카페를 좋아하는군요. 저도 그래요!", "You like cafés. So do I!")),
                 free = Reply(Line("저는 산책을 좋아해요.", "I like going for walks."), Line("산책 좋죠! 저도 자주 걸어요.", "Walks are great! I often go walking too.")),
             ),
             Turn(
-                Line("저도 카페에 가는 걸 좋아해요. 이번 주말에 같이 갈까요?", "I also like going to cafés. Shall we go together this weekend?"),
+                Line("저도 카페에 가는 걸 좋아해요. 이번 주말에 같이 갈까요?", "I like cafés too. Shall we go this weekend?"),
                 guided = Reply(Line("좋아요. 이번 주말에 같이 가요.", "Sure. Let's go together this weekend."), Line("이번 주말에 봐요! 제가 카페를 찾아볼게요.", "See you this weekend! I'll look for a café.")),
                 free = Reply(Line("다음 주에는 어때요?", "How about next week?"), Line("다음 주 좋아요! 그때 같이 가요.", "Next week sounds good! Let's go together then.")),
             ),
@@ -146,22 +155,97 @@ object Scripts {
         closing = Line("오늘 반가웠어요. 또 만나요!", "It was nice to meet you today. See you again!"),
     )
 
-    /** C · 편의점. */
+    /** 지우가 못 알아들었을 때만 건네는 말. */
+    val askAgain = Line("네? 다시 말해줄래요?", "Sorry? Could you say that again?")
+
+    /** 첫 대화에서 한 번만: 안내 문구 대신 지우의 대사로 어절을 눌러 보라고 알려 준다. */
+    val wordHint = Line("모르는 말은 눌러 봐요.", "Tap any word you don't know.", emphasis = 2)
+
+    /** 한강 대화 · 편의점. */
     val store = Script(
         place = "한강",
-        intro = listOf(
-            Line("여기서 저녁 먹고 갈까요?", "Shall we have dinner here before we go?"),
-            Line("저는 따뜻한 게 당기네요.", "I feel like having something warm."),
-        ),
+        intro = listOf(Line("여기서 저녁 먹고 갈까요?", "Shall we have dinner here before we go?")),
         turns = listOf(
             Turn(
                 Line("오늘은 뭐 먹고 싶어요?", "What would you like to eat today?"),
-                guided = Reply(Line("라면 먹고 싶어요.", "I'd like to have ramyeon."), Line("라면 좋죠! 그럼 제가 뜨거운 물 받아 올게요.", "Ramyeon sounds good! Then I'll go get hot water.")),
-                free = Reply(Line("삼각김밥 먹고 싶어요.", "I'd like to have a triangular rice ball."), Line("삼각김밥이요? 참치마요가 맛있어요. 같이 골라 봐요.", "A rice ball? The tuna mayo one is delicious. Let's pick one together.")),
+                guided = Reply(
+                    Line("라면 먹고 싶어요.", "I'd like to have ramyeon."),
+                    Line("라면 좋죠! 그럼 제가 뜨거운 물 받아 올게요.", "Ramyeon sounds good! Then I'll get hot water."),
+                    mark = Mark(1, "머고", MarkLevel.Fair),
+                ),
+                free = Reply(
+                    Line("삼각김밥 먹고 싶어요.", "I'd like to have a triangular rice ball."),
+                    Line("삼각김밥이요? 참치마요가 맛있어요.", "A rice ball? The tuna mayo one is delicious."),
+                    mark = Mark(0, "상각김빱", MarkLevel.Poor),
+                ),
             ),
         ),
         closing = Line("저기 자리가 있네요. 같이 앉아요.", "There's a seat over there. Let's sit together."),
     )
+
+    /** 노트 · 다시 말해 보기. 저장한 말 하나로 나누는 짧은 대화 (마무리 인사 없음). */
+    fun review(word: String): Script = when (word) {
+        "삼각김밥" -> Script(
+            place = "한강 공원",
+            intro = emptyList(),
+            turns = listOf(
+                Turn(
+                    Line("편의점에서 뭐 살까요?", "What shall we buy at the store?"),
+                    guided = Reply(Line("삼각김밥 사고 싶어요.", "I'd like to buy a triangular rice ball."), Line("좋아요! 참치마요로 골라요.", "Sounds good! Let's pick tuna mayo.")),
+                    free = Reply(Line("삼각김밥 사고 싶어요.", "I'd like to buy a triangular rice ball."), Line("좋아요! 참치마요로 골라요.", "Sounds good! Let's pick tuna mayo.")),
+                ),
+            ),
+            closing = null,
+        )
+        "갈까요" -> Script(
+            place = "한강 공원",
+            intro = emptyList(),
+            turns = listOf(
+                Turn(
+                    Line("날씨가 참 좋네요.", "The weather is really nice."),
+                    guided = Reply(Line("한강에 같이 갈까요?", "Shall we go to the Han River together?"), Line("좋아요! 지금 가요.", "Sounds good! Let's go now.")),
+                    free = Reply(Line("한강에 같이 갈까요?", "Shall we go to the Han River together?"), Line("좋아요! 지금 가요.", "Sounds good! Let's go now.")),
+                ),
+            ),
+            closing = null,
+        )
+        "신나요" -> Script(
+            place = "음악의 거리",
+            intro = emptyList(),
+            turns = listOf(
+                Turn(
+                    Line("공연 어땠어요?", "How was the show?"),
+                    guided = Reply(Line("정말 신나요!", "It's really exciting!"), Line("그렇죠? 저도 신나요!", "Right? I'm excited too!")),
+                    free = Reply(Line("정말 신나요!", "It's really exciting!"), Line("그렇죠? 저도 신나요!", "Right? I'm excited too!")),
+                ),
+            ),
+            closing = null,
+        )
+        "같이" -> Script(
+            place = "음악의 거리",
+            intro = emptyList(),
+            turns = listOf(
+                Turn(
+                    Line("버스킹 보러 갈래요?", "Do you want to go see the busking?"),
+                    guided = Reply(Line("네, 같이 가요.", "Yes, let's go together."), Line("좋아요! 같이 가요.", "Great! Let's go together.")),
+                    free = Reply(Line("네, 같이 가요.", "Yes, let's go together."), Line("좋아요! 같이 가요.", "Great! Let's go together.")),
+                ),
+            ),
+            closing = null,
+        )
+        else -> Script(
+            place = "한강 공원",
+            intro = emptyList(),
+            turns = listOf(
+                Turn(
+                    Line("우리 이제 뭐 할까요?", "What shall we do now?"),
+                    guided = Reply(Line("저녁 먹으러 갈까요?", "Shall we go get dinner?"), Line("좋아요! 저도 배고팠어요.", "Sounds good! I was hungry too.")),
+                    free = Reply(Line("저녁 먹으러 갈까요?", "Shall we go get dinner?"), Line("좋아요! 저도 배고팠어요.", "Sounds good! I was hungry too.")),
+                ),
+            ),
+            closing = null,
+        )
+    }
 
     /** B-11 · 지난 곳 다시 보기 (Figma에 대사가 없어 임시로 넣은 문장). */
     val pocha = Script(

@@ -60,7 +60,7 @@ fun DebugPanel(model: AppModel, onClose: () -> Unit) {
             Box(Modifier.height(14.dp))
             T("대화 중 예외", Type.Caption, K.TextTertiary)
             Box(Modifier.height(8.dp))
-            Toggle("다음에 보내는 말이 잘 안 들림", model.nextQuiet) { model.nextQuiet = it }
+            Toggle("다음에 하는 말을 지우가 못 알아들음", model.nextQuiet) { model.nextQuiet = it }
             Toggle("마이크 권한 없음 · 장면만 보기", model.forceMicOff) { model.forceMicOff = it }
         }
     }

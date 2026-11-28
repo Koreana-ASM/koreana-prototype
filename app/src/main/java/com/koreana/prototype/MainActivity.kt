@@ -135,12 +135,18 @@ private fun App(model: AppModel, voice: Voice) {
                             onClose = { turn ->
                                 when (screen.config.mode) {
                                     TalkMode.Main -> model.leaveTalk(turn)
+                                    TalkMode.Review -> model.screen = Screen.Note
                                     else -> model.screen = Screen.Home
                                 }
                             },
-                            onFinished = { model.finishTalk(more = false) },
+                            onFinished = {
+                                val word = screen.config.reviewWord
+                                if (screen.config.mode == TalkMode.Review && word != null) model.finishReview(word)
+                                else model.finishTalk(more = false)
+                            },
                         )
                     }
+                    else -> HomeScreen(model, onOpenDebug = { debugOpen = true })
                 }
             }
             if (debugOpen) {
