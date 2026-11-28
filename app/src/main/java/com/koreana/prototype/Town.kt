@@ -140,6 +140,8 @@ class SavedWord(
     val roman: String,
     val meaning: String,
     val alley: Int,
+    /** 이 말을 만난 문장. */
+    val sentence: Line? = null,
     spoken: Boolean = false,
     understood: Boolean = false,
 ) {

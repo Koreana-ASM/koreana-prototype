@@ -469,7 +469,7 @@ fun TalkScreen(
                 origin = origin,
                 saved = model.isSaved(p.word),
                 onListen = { playWord(Words.bare(p.word)) },
-                onSave = { model.toggleSaved(p.word) },
+                onSave = { model.toggleSaved(p.word, p.line) },
                 onMore = { sheet = p.line to p.index; pick = null },
                 onMine = { p.mark?.let { playWord(it.heard, Speaker.Me) } },
                 onDismiss = { pick = null },
@@ -492,7 +492,7 @@ fun TalkScreen(
                 saved = model.isSaved(l.words[i]),
                 playing = playingWord,
                 onListen = { playWord(it) },
-                onSave = { model.toggleSaved(l.words[i]) },
+                onSave = { model.toggleSaved(l.words[i], l) },
                 onClose = { stopVoice(); sheet = null },
             )
         }

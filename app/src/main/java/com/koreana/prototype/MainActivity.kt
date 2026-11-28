@@ -1,6 +1,9 @@
 package com.koreana.prototype
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.content.pm.PackageManager
 import android.graphics.Color as AndroidColor
 import android.os.Bundle
@@ -21,6 +24,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -31,11 +35,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import com.koreana.prototype.home.HomeScreen
 import com.koreana.prototype.home.NotificationMock
 import com.koreana.prototype.map.MapScreen
+import com.koreana.prototype.note.NoteScreen
 import com.koreana.prototype.onboarding.OnboardingFlow
 import com.koreana.prototype.talk.TalkScreen
 import com.koreana.prototype.ui.K
@@ -68,6 +75,9 @@ class MainActivity : ComponentActivity() {
                 pendingMicResult = onResult
                 micLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
+        }
+        model.openAppSettings = {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
         }
         setContent { DesignScaled { App(model, voice) } }
     }
@@ -120,6 +130,14 @@ private fun DesignScaled(content: @Composable () -> Unit) {
 @Composable
 private fun App(model: AppModel, voice: Voice) {
     var debugOpen by remember { mutableStateOf(false) }
+    // 밝은 화면(노트, 프로필)에서는 상태 바의 글자를 어둡게 한다.
+    val view = LocalView.current
+    val lightPage = model.screen == Screen.Note || model.screen == Screen.Profile
+    SideEffect {
+        (view.context as? ComponentActivity)?.window?.let { window ->
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = lightPage
+        }
+    }
     CompositionLocalProvider(LocalVoice provides voice) {
         Box(Modifier.fillMaxSize()) {
             Crossfade(targetState = model.screen, animationSpec = tween(350), label = "screen") { screen ->
@@ -148,6 +166,7 @@ private fun App(model: AppModel, voice: Voice) {
                         )
                     }
                     Screen.Map -> MapScreen(model)
+                    Screen.Note -> NoteScreen(model, onOpenDebug = { debugOpen = true })
                     else -> HomeScreen(model, onOpenDebug = { debugOpen = true })
                 }
             }

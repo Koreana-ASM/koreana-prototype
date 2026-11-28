@@ -197,14 +197,14 @@ class AppModel {
     fun isSaved(word: String) = saved.any { it.word == Words.bare(word) }
 
     /** 어절 말풍선의 🔖: 저장하거나, 이미 저장한 말이면 해제한다. */
-    fun toggleSaved(word: String) {
+    fun toggleSaved(word: String, sentence: Line? = null) {
         val bare = Words.bare(word)
         val existing = saved.firstOrNull { it.word == bare }
         if (existing != null) {
             saved.remove(existing)
             todayWords.remove(bare)
         } else {
-            saved.add(0, SavedWord(bare, romanize(bare), Words.info(bare)?.meaning ?: "", currentAlley))
+            saved.add(0, SavedWord(bare, romanize(bare), Words.info(bare)?.meaning ?: "", currentAlley, sentence))
         }
     }
 
@@ -231,14 +231,15 @@ class AppModel {
         progress.clear()
         progress.putAll(mapOf(Town.Hangang to 12, Town.Food to 12, Town.Music to 8, Town.Campus to 6))
         recommended = null
+        val dinner = Line("여기서 저녁 먹고 갈까요?", "Shall we have dinner here before we go?")
         saved.clear()
         saved.addAll(
             listOf(
-                SavedWord("갈까요", "galkkayo", "shall we go?", Town.Hangang, spoken = true, understood = true),
-                SavedWord("삼각김밥", "samgak-gimbap", "triangle kimbap", Town.Hangang, spoken = true),
-                SavedWord("저녁", "jeonyeok", "dinner", Town.Hangang),
-                SavedWord("신나요", "sinnayo", "it's exciting", Town.Music, spoken = true, understood = true),
-                SavedWord("같이", "gachi", "together", Town.Music),
+                SavedWord("갈까요", "galkkayo", "shall we go?", Town.Hangang, dinner, spoken = true, understood = true),
+                SavedWord("삼각김밥", "samgak-gimbap", "triangle kimbap", Town.Hangang, Line("삼각김밥 먹고 싶어요.", "I'd like to have a triangular rice ball."), spoken = true),
+                SavedWord("저녁", "jeonyeok", "dinner", Town.Hangang, dinner),
+                SavedWord("신나요", "sinnayo", "it's exciting", Town.Music, Line("정말 신나요!", "It's really exciting!"), spoken = true, understood = true),
+                SavedWord("같이", "gachi", "together", Town.Music, Line("네, 같이 가요.", "Yes, let's go together.")),
             ),
         )
         todayWords.clear(); todayWords.addAll(listOf("삼각김밥", "저녁"))

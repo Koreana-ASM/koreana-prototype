@@ -442,7 +442,7 @@ private fun ToneTalk(model: AppModel, onBack: () -> Unit, onDone: () -> Unit) {
                 origin = origin,
                 saved = model.isSaved(p.word),
                 onListen = { say(Words.bare(p.word), Speaker.Model) },
-                onSave = { model.toggleSaved(p.word) },
+                onSave = { model.toggleSaved(p.word, p.line) },
                 onMore = { sheet = p.line to p.index; pick = null },
                 onMine = {},
                 onDismiss = { pick = null },
@@ -461,7 +461,7 @@ private fun ToneTalk(model: AppModel, onBack: () -> Unit, onDone: () -> Unit) {
             WordSheet(
                 word = l.words[i], sentence = l, saved = model.isSaved(l.words[i]), playing = false,
                 onListen = { say(it, Speaker.Model) },
-                onSave = { model.toggleSaved(l.words[i]) },
+                onSave = { model.toggleSaved(l.words[i], l) },
                 onClose = { sheet = null },
             )
         }
