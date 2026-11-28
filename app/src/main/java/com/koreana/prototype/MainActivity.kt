@@ -43,6 +43,9 @@ import com.koreana.prototype.home.HomeScreen
 import com.koreana.prototype.home.NotificationMock
 import com.koreana.prototype.map.MapScreen
 import com.koreana.prototype.note.NoteScreen
+import com.koreana.prototype.profile.LookBack
+import com.koreana.prototype.profile.ProfileScreen
+import com.koreana.prototype.profile.TrophyAward
 import com.koreana.prototype.onboarding.OnboardingFlow
 import com.koreana.prototype.talk.TalkScreen
 import com.koreana.prototype.ui.K
@@ -167,7 +170,9 @@ private fun App(model: AppModel, voice: Voice) {
                     }
                     Screen.Map -> MapScreen(model)
                     Screen.Note -> NoteScreen(model, onOpenDebug = { debugOpen = true })
-                    else -> HomeScreen(model, onOpenDebug = { debugOpen = true })
+                    Screen.Profile -> ProfileScreen(model, onOpenDebug = { debugOpen = true })
+                    is Screen.TrophyAward -> TrophyAward(model, screen.trophy)
+                    Screen.LookBack -> LookBack(model)
                 }
             }
             if (debugOpen) {

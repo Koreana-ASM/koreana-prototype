@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import com.koreana.prototype.Alley
 import com.koreana.prototype.AppModel
 import com.koreana.prototype.R
+import com.koreana.prototype.Screen
 import com.koreana.prototype.Scripts
 import com.koreana.prototype.Town
 import com.koreana.prototype.talk.MintButton
@@ -173,7 +174,7 @@ fun MapScreen(model: AppModel) {
             }
         }
 
-        BackHandler(enabled = open != null) { close() }
+        BackHandler(enabled = !travelling) { if (open != null) close() else model.screen = Screen.Home }
 
         val jiwooAt = model.recommended ?: model.currentAlley
         val target = markerSpot(Town.alleys[jiwooAt])

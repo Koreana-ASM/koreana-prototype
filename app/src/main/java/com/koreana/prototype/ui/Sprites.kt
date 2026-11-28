@@ -35,6 +35,6 @@ fun trophyPainter(trophy: Trophy): Painter {
     return remember(sheet, trophy) {
         val cx = 192 + 384 * trophy.col
         val cy = if (trophy.row == 0) 268 else 750
-        BitmapPainter(sheet, IntOffset(cx - 200, (cy - 200).coerceIn(0, 1024 - 400)), IntSize(400, 400))
+        BitmapPainter(sheet, IntOffset((cx - 200).coerceIn(0, sheet.width - 400), (cy - 200).coerceIn(0, sheet.height - 400)), IntSize(400, 400))
     }
 }

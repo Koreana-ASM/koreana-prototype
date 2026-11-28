@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import com.koreana.prototype.AppModel
 import com.koreana.prototype.LocalVoice
 import com.koreana.prototype.R
+import com.koreana.prototype.Screen
 import com.koreana.prototype.SavedWord
 import com.koreana.prototype.Speaker
 import com.koreana.prototype.Town
@@ -100,7 +101,10 @@ fun NoteScreen(model: AppModel, onOpenDebug: () -> Unit) {
         model.requestMic { granted -> if (!granted) { toast("설정에서 마이크를 허용해 주세요"); model.openAppSettings() } }
     }
 
-    BackHandler(enabled = detail != null) { voice.stop(); detail = null }
+    BackHandler {
+        voice.stop()
+        if (detail != null) detail = null else model.screen = Screen.Home
+    }
 
     Box(Modifier.fillMaxSize().background(PK.Paper)) {
         Column(
