@@ -4,11 +4,14 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.koreana.prototype.R
 
 /** Figma 디자인 토큰 (v2 · KOREANA). */
 object K {
@@ -101,6 +104,17 @@ object TK {
     val Choice = Color(0xFF18362F)
     val ChoiceTag = Color(0xFFDFEAE2)
 
+    // 새 대화 틀: 고정 대화창, 어절 말풍선, 단어 시트.
+    val Round = Color(0xD918362F)
+    val Sheet2 = Color(0xFF16312A)
+    val SheetLine = Color(0x80778A72)
+    val Bubble = Color(0xFFFBFAF2)
+    val BubbleInk = Color(0xFF18362F)
+    val BubbleMuted = Color(0xFF5C6E66)
+    val Dots = Color(0xD9B7CABF)
+    val Fair = Color(0xFF9A6700)
+    val Poor = Color(0xFFD94238)
+
     /** 글자 크기, 굵기, 줄 높이(sp). 자간은 Figma와 같이 크기의 -1%. */
     fun text(size: Int, weight: FontWeight, lineHeight: Int) = TextStyle(
         fontSize = size.sp,
@@ -108,4 +122,35 @@ object TK {
         lineHeight = lineHeight.sp,
         letterSpacing = (-size * 0.01f).sp,
     )
+}
+
+/** 밝은 화면(지도 이름표, 프로필, 노트)의 색. */
+object PK {
+    val Paper = Color(0xFFFAF9F4)
+    val Ink = Color(0xFF18362F)
+    val Muted = Color(0xFF5C6E66)
+    val Line = Color(0xFFE2DED0)
+    val Chip = Color(0xFFEAF2E8)
+    val Play = Color(0xFFEFE8DA)
+    val PlayInk = Color(0xFF5B5346)
+    val Lit = Color(0xFFFFE9AA)
+    val LitStroke = Color(0xFFC9822B)
+    val Glow = Color(0xFFFFBF4D)
+    val Flame = Color(0xFFF2B441)
+    val TrophyBase = Color(0xFFF1E9D5)
+    val Town = Color(0xFFD6D2C6)
+    val Cork = Color(0xFFC59C6C)
+    val Polaroid = Color(0xFFFFFDF6)
+    val PolaroidInk = Color(0xFF2B2A27)
+    val PolaroidSub = Color(0xFF8C8576)
+    val Dark = Color(0xFF242220)
+
+    /** 줄 높이를 따로 주지 않는(leading normal) 글자. */
+    fun text(size: Int, weight: FontWeight) = TextStyle(fontSize = size.sp, fontWeight = weight)
+
+    private val gaegu = FontFamily(Font(R.font.gaegu_regular, FontWeight.Normal), Font(R.font.gaegu_bold, FontWeight.Bold))
+
+    /** 폴라로이드의 손글씨. */
+    fun hand(size: Float, weight: FontWeight = FontWeight.Bold) =
+        TextStyle(fontFamily = gaegu, fontSize = size.sp, fontWeight = weight, lineHeight = (size * 1.12f).sp)
 }
