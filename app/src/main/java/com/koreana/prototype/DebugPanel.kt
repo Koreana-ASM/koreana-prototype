@@ -46,7 +46,10 @@ fun DebugPanel(model: AppModel, onClose: () -> Unit) {
             T("Figma 프레임 상태로 바로 이동해요.", Type.Caption, K.TextSecondary)
             Box(Modifier.height(12.dp))
             Column(Modifier.height(430.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Scenario.entries.forEach { s ->
+                Scenario.entries.forEachIndexed { n, s ->
+                    if (n == 0 || Scenario.entries[n - 1].group != s.group) {
+                        T(s.group, Type.Caption, K.TextTertiary, Modifier.padding(top = if (n == 0) 0.dp else 8.dp, start = 2.dp))
+                    }
                     Box(
                         Modifier
                             .fillMaxWidth()

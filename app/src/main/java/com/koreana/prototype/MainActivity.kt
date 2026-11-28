@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.koreana.prototype.home.HomeScreen
 import com.koreana.prototype.home.NotificationMock
+import com.koreana.prototype.map.MapScreen
 import com.koreana.prototype.onboarding.OnboardingFlow
 import com.koreana.prototype.talk.TalkScreen
 import com.koreana.prototype.ui.K
@@ -146,6 +147,7 @@ private fun App(model: AppModel, voice: Voice) {
                             },
                         )
                     }
+                    Screen.Map -> MapScreen(model)
                     else -> HomeScreen(model, onOpenDebug = { debugOpen = true })
                 }
             }

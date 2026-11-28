@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import com.koreana.prototype.AppModel
 import com.koreana.prototype.HomeVariant
 import com.koreana.prototype.R
+import com.koreana.prototype.Screen
 import com.koreana.prototype.Script
 import com.koreana.prototype.Scripts
 import com.koreana.prototype.ui.At
@@ -76,6 +77,8 @@ import com.koreana.prototype.ui.K
 import com.koreana.prototype.ui.LocalBottomExtra
 import com.koreana.prototype.ui.StatPill
 import com.koreana.prototype.ui.T
+import com.koreana.prototype.ui.Tab
+import com.koreana.prototype.ui.TabBar
 import com.koreana.prototype.ui.Type
 import com.koreana.prototype.ui.floatingCard
 import com.koreana.prototype.ui.plainClick
@@ -83,7 +86,7 @@ import com.koreana.prototype.ui.rememberToast
 import kotlinx.coroutines.delay
 import kotlin.math.hypot
 
-private const val OUT_OF_SCOPE = "이번 목업 범위 밖이에요 (A · B · C만 구현)"
+private const val OUT_OF_SCOPE = "이번 목업 범위 밖이에요"
 
 /** 지나온 길 (Figma 프레임 좌표). 한옥 카페 → 포장마차 → 오늘의 편의점. */
 private val walkedPath = listOf(Offset(140f, 632f), Offset(292f, 690f), Offset(302f, 520f), Offset(184f, 446f))
@@ -178,8 +181,8 @@ fun HomeScreen(model: AppModel, onOpenDebug: () -> Unit) {
     when {
         complete -> {
             label = "지우"; message = "한강은 다 돌아봤네요. 다음 동네로 가 볼까요?"
-            primary = { toast("다음 동네는 $OUT_OF_SCOPE") }
-            helpers = listOf(Helper("받은 기념품 보기") { toast(OUT_OF_SCOPE) })
+            primary = { model.screen = Screen.Map }
+            helpers = listOf(Helper("받은 기념품 보기") { model.screen = Screen.Profile })
         }
         limit -> {
             label = "지우"; message = "오늘은 여기까지 해요. 내일 또 만나요!"
@@ -224,7 +227,7 @@ fun HomeScreen(model: AppModel, onOpenDebug: () -> Unit) {
             label = "지우"; message = "왔어요? 기다렸어요!"
             primary = start
             helpers = if (model.signedUp) emptyList()
-            else listOf(Helper("캐릭터와 별을 저장해 두세요") { toast("가입(J)은 $OUT_OF_SCOPE") })
+            else listOf(Helper("캐릭터와 별을 저장해 두세요") { model.screen = Screen.Profile })
         }
     }
     val waiting = !done && !complete
@@ -268,7 +271,7 @@ fun HomeScreen(model: AppModel, onOpenDebug: () -> Unit) {
             // 다음 곳.
             when {
                 complete -> {
-                    At(164, 164) { CheckPing { toast(OUT_OF_SCOPE) } }
+                    At(164, 164) { CheckPing { model.screen = Screen.Map } }
                     CenteredAt(186, 214) { GlassChip("다리 위") }
                 }
                 done -> {
@@ -331,7 +334,7 @@ fun HomeScreen(model: AppModel, onOpenDebug: () -> Unit) {
                 .padding(start = 24.dp, top = 50.dp)
                 .floatingCard(100.dp)
                 .background(Color.White)
-                .combinedClickable(onClick = { toast("프로필(H)은 $OUT_OF_SCOPE · 길게 누르면 시나리오") }, onLongClick = onOpenDebug)
+                .combinedClickable(onClick = { model.screen = Screen.Profile }, onLongClick = onOpenDebug)
                 .padding(start = 6.dp, end = 14.dp, top = 5.dp, bottom = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -368,8 +371,8 @@ fun HomeScreen(model: AppModel, onOpenDebug: () -> Unit) {
                 Modifier.clip(RoundedCornerShape(28.dp)).background(Color(0xE6203F36)).padding(horizontal = 28.dp, vertical = 14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                T("첫 번째 동네", Type.Caption, K.OnPhotoMuted)
-                T("한강", Type.TitleLarge, Color.White)
+                T("지금 골목", Type.Caption, K.OnPhotoMuted)
+                T(model.placeName, Type.TitleLarge, Color.White)
             }
         }
 
@@ -410,7 +413,7 @@ fun HomeScreen(model: AppModel, onOpenDebug: () -> Unit) {
             }
         }
 
-        TabBar(Modifier.align(Alignment.BottomCenter).padding(bottom = 42.dp + extra)) { toast("$it 탭은 $OUT_OF_SCOPE") }
+        TabBar(model, Tab.Home, dot = !model.signedUp)
     }
 }
 
@@ -481,50 +484,10 @@ private fun BoxScope.MapLayers(fullColor: Boolean, spread: Float) {
     }
 }
 
-@Composable
-private fun TabBar(modifier: Modifier = Modifier, onOther: (String) -> Unit) {
-    Box(modifier.width(342.dp)) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-                .clip(CircleShape)
-                .background(K.GlassRegular)
-                .border(1.dp, K.GlassRegularStroke, CircleShape)
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val tabs = listOf("홈" to R.drawable.ic_home, "코스" to R.drawable.ic_book, "노트" to R.drawable.ic_book, "프로필" to R.drawable.ic_profile)
-            tabs.forEachIndexed { i, (name, icon) ->
-                val selected = i == 0
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clip(CircleShape)
-                        .background(if (selected) Color.White else Color.Transparent)
-                        .clickable(enabled = !selected) { onOther(name) },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Ic(icon, size = 22.dp, tint = if (selected) K.BrandPrimary else Color.White.copy(alpha = 0.72f))
-                    Spacer(Modifier.height(2.dp))
-                    T(name, Type.Caption, if (selected) K.BrandPrimary else K.OnPhotoMuted)
-                }
-            }
-        }
-        // 새 소식 표시
-        Box(
-            Modifier.align(Alignment.TopEnd).offset(x = (-24).dp, y = 10.dp).size(9.dp).clip(CircleShape)
-                .background(Color.White).padding(1.5.dp).clip(CircleShape).background(K.Alert),
-        )
-    }
-}
-
 /** B-13 · 알림 예시: 지우의 메시지. 누르면 바로 장면으로. */
 @Composable
 fun NotificationMock(model: AppModel) {
-    BackHandler { model.screen = com.koreana.prototype.Screen.Home }
+    BackHandler { model.screen = Screen.Home }
     Box(Modifier.fillMaxSize().background(K.BrandStrong)) {
         Image(
             painterResource(R.drawable.img_map), null,
